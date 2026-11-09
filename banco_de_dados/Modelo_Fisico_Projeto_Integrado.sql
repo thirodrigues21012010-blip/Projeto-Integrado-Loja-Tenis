@@ -1,7 +1,7 @@
 -- PROJETO INTEGRADO - BANCO DE DADOS
--- Aluno: Thiago Rodrigues | Turma: 2 TI B
+-- Aluno: Thiago Rodrigues; Vinicius Pansonato; Guilherme Ronaldo | Turma: 2 TI B
 -- Modelo fisico baseado nos modelos conceitual e logico do projeto.
--- Ambiente: phpMyAdmin / XAMPP; MariaDB 10.2.1+ ou MySQL 8.0.16+.
+-- Ambiente: phpMyAdmin / XAMPP;MySQL 8.0.16+.
 -- Importar este arquivo uma unica vez em um banco novo.
 -- O arquivo cria somente a estrutura, sem dados pessoais ou de exemplo.
 
@@ -124,7 +124,7 @@ CREATE TABLE ITEM_LISTA_DESEJOS (
 -- e) A lista e persistente e permite incluir/remover itens, sem reservas,
 --    compras, pagamentos ou entregas. Estoque zero nao exclui a variante.
 -- O arquivo nao cria triggers nem presume que CHECK possa consultar
--- outras tabelas. CHECK exige MariaDB 10.2.1+ ou MySQL 8.0.16+.
+-- outras tabelas. CHECK exige MySQL 8.0.16+.
 
 -- Conferencia opcional depois da importacao:
 -- SHOW TABLES;
