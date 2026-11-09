@@ -6,9 +6,12 @@ Este repositório registra o desenvolvimento do Projeto Integrado. A etapa de Ba
 
 ## Banco de Dados
 
+- [Modelo conceitual](banco_de_dados/Modelo_Conceitual_Projeto_Integrado.png)
 - [Modelo conceitual no BR Modelo Web](https://app.brmodeloweb.com/conceptual/6af1a5ff3631bd9e55c10029)
 - [Modelo lógico relacional](banco_de_dados/Modelo_Logico_Projeto_Integrado.png)
 - [Modelo físico SQL](banco_de_dados/Modelo_Fisico_Projeto_Integrado.sql)
+
+Os PNGs dos modelos conceitual e lógico são as mesmas imagens entregues ao professor pelo Google Classroom.
 
 ### Estrutura
 
