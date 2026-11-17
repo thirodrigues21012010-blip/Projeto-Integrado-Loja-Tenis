@@ -1,47 +1,73 @@
-# Projeto Integrado — Loja de Tênis
+# Hype. — Projeto Integrado | Entrega final
 
-**Aluno:** Thiago Rodrigues · **Turma:** 2 TI B
+Thiago Rodrigues, Vinicius Pansonato e Guilherme Ronaldo — 2 TI B.
 
-Este repositório registra o desenvolvimento do Projeto Integrado. A etapa de Banco de Dados reúne a modelagem do catálogo de tênis, usuários, estoque e listas de desejos.
+Vitrine de tênis com Python/POO, DAOs, Flask, MySQL/MariaDB no XAMPP e interface HTML/CSS/JavaScript integrada por Fetch. Sem checkout, pagamento ou reserva de estoque.
 
-## Banco de Dados
+## Executar no Windows / VS Code
 
-- [Modelo conceitual](banco_de_dados/Modelo_Conceitual_Projeto_Integrado.png)
-- [Modelo conceitual no BR Modelo Web](https://app.brmodeloweb.com/conceptual/6af1a5ff3631bd9e55c10029)
-- [Modelo lógico relacional](banco_de_dados/Modelo_Logico_Projeto_Integrado.png)
-- [Modelo físico SQL](banco_de_dados/Modelo_Fisico_Projeto_Integrado.sql)
+1. Extraia o ZIP. Abra a pasta que contém `app.py` no VS Code.
+2. Instale Python 3.11 ou superior e inicie **MySQL** no painel XAMPP. Apache só é necessário se você usar o phpMyAdmin.
+3. No phpMyAdmin, importe `banco_de_dados/Modelo_Fisico_Projeto_Integrado.sql` **somente em banco novo**. Não reimporte sobre suas tabelas existentes. O script original foi preservado e não apaga tabelas. Se já tem o banco, confira nomes e estrutura antes de continuar.
+4. Abra o terminal PowerShell na pasta do projeto:
 
-Os PNGs dos modelos conceitual e lógico são as mesmas imagens entregues ao professor pelo Google Classroom.
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
 
-### Estrutura
+5. Edite `.env`: nome do banco, porta, usuário, senha e uma chave secreta própria. O padrão é `projeto_integrado`, porta 3306, usuário root e senha vazia; confirme os valores do seu XAMPP. Para gerar a chave: `.\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"`.
+6. Em catálogo vazio, carregue os dados de demonstração:
 
-| Tabela | Finalidade |
-| --- | --- |
-| USUARIO | Contas de clientes, funcionários e gerentes; CPF e e-mail únicos. |
-| LISTA_DESEJOS | Lista persistente vinculada a um usuário, com no máximo uma lista por conta. |
-| MODELO | Nome, marca e descrição do modelo de tênis. |
-| COLORACAO | Cor e preço de um modelo, sem repetir a mesma cor no modelo. |
-| VARIANTE | Tamanho e quantidade em estoque por coloração, sem repetir o tamanho na mesma coloração. |
-| FOTO | URLs das fotos de cada coloração. |
-| ITEM_LISTA_DESEJOS | Relação entre listas e variantes, com chave primária composta. |
+```powershell
+.\.venv\Scripts\python.exe gerenciar.py catalogo
+```
 
-### Regras implementadas
+7. Crie uma conta interna para demonstrar a administração:
 
-O script cria sete tabelas InnoDB, com chaves primárias e estrangeiras, restrições de unicidade e validações de perfil, preço e estoque não negativos. A inclusão de uma variante na lista de desejos não reserva nem reduz o estoque. Fotos pertencem à coloração; o preço é compartilhado pelos tamanhos dessa coloração.
+```powershell
+.\.venv\Scripts\python.exe gerenciar.py conta
+```
 
-As regras de participação mínima e as permissões por perfil estão documentadas no SQL para implementação nas transações do futuro back-end. Isso inclui criar a lista junto com o cliente e garantir que modelos e colorações tenham os registros dependentes obrigatórios. As senhas devem ser transformadas em hash pela aplicação antes de serem armazenadas.
+Escolha GERENTE ou FUNCIONARIO. Não existem senhas administrativas fixas. O cadastro na página sempre cria CLIENTE.
 
-### Importação no phpMyAdmin / XAMPP
+8. Inicie a aplicação:
 
-1. Inicie o MySQL/MariaDB no XAMPP e abra o phpMyAdmin.
-2. Na aba **Importar**, selecione `banco_de_dados/Modelo_Fisico_Projeto_Integrado.sql`.
-3. Execute a importação uma única vez em um banco novo. O script cria e seleciona `projeto_integrado`.
-4. Confira as sete tabelas criadas.
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
 
-Requisitos: **MariaDB 10.2.1+** ou **MySQL 8.0.16+**, para aplicação das restrições `CHECK`. O script usa `utf8mb4` e cria somente a estrutura, sem dados pessoais ou dados de exemplo.
+9. Acesse **http://127.0.0.1:5000**. Use essa URL para todas as funções. Abrir o HTML diretamente ou usar Live Server não conecta a interface à API.
 
-Em sistemas que diferenciam maiúsculas de minúsculas nos nomes de tabelas, use os nomes em maiúsculas definidos no script ao implementar as consultas do back-end.
+No Linux/macOS, substitua `.\.venv\Scripts\python.exe` por `.venv/bin/python` e `Copy-Item` por `cp`.
 
-### Estado da entrega
+## Funcionalidades
 
-Modelo lógico e script físico produzidos; importação no phpMyAdmin realizada e estruturas conferidas durante a etapa de Banco de Dados. Este registro contém o trabalho de BD realizado até 09/11/2026. O front-end e o back-end são etapas posteriores.
+- Catálogo, pesquisa, marcas, carrossel de 5 segundos, detalhes e seleção de coloração/tamanho.
+- Cadastro, login e logout com hash de senha e sessão HTTP; proteção CSRF.
+- Lista persistente por usuário e variante. Inclusão repetida não duplica itens e não altera estoque. É permitido salvar item esgotado.
+- Funcionário e gerente adicionam tamanhos e atualizam quantidades.
+- Gerente cadastra modelo com cor, foto e tamanho inicial na mesma transação; também adiciona cores a um modelo existente.
+- Fotos usam caminhos de arquivos em `frontend/assets/` ou URLs HTTPS. Para incluir imagem local, copie o arquivo para essa pasta e informe `assets/nome.webp`.
+
+## Organização
+
+`app.py`: rotas e validações. `backend/models.py`: entidades POO. `backend/dao.py`: persistência. `backend/database.py`: conexão/transações. `frontend/`: interface e imagens. `dados/`: fonte da carga inicial, não consultada pelo navegador. `banco_de_dados/`: SQL e modelos originais. `docs/`: alterações, UML em PDF (`UML.pdf`) e fonte Mermaid (`UML.md`), API e validação.
+
+## Dados demonstrativos e limites
+
+O catálogo preserva os nomes, imagens e preços de referência do arquivo recebido. Tamanhos 38–42 e quantidades são fictícios (3 por tamanho); produtos originalmente sem preço recebem preço 0 e estoque 0, com a legenda “Consulte a loja”. Esses valores não representam estoque real. A carga é cancelada se o catálogo já tiver registros.
+
+O CPF é validado por formato de 11 dígitos, sem cálculo dos dígitos verificadores. Use dados fictícios na apresentação. O sistema é destinado à execução local acadêmica; não foi preparado para publicação pública. Não inclua `.env` ou dados pessoais em commits.
+
+## Verificação
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install pytest
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Os testes usam adaptador SQLite em memória para exercitar rotas e DAOs; a aplicação entregue usa exclusivamente MySQL. Veja `docs/VALIDACAO.md` para o teste obrigatório no seu XAMPP.
+
+Esta é a versão final do Projeto Integrado, com banco de dados, back-end Flask, front-end integrado por Fetch e diagrama UML em PDF. O convite ao professor deve ser conferido nas configurações do repositório. O histórico de commits registra as alterações reais do projeto.

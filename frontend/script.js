@@ -1,40 +1,43 @@
-let saved;try{saved=JSON.parse(localStorage.getItem('hype-wishlist')||'[]');if(!Array.isArray(saved))saved=[];saved=saved.filter(id=>products.some(p=>p.id===id))}catch{saved=[]}let brand='all';
-let expanded=false;
-let modelFilter=null;
-const mixedProducts=interleaveBrands();
-const money=n=>n===null?'Sem oferta no momento':n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const search=document.querySelector('#search');
-function render(){const filtered=(brand==='all'?mixedProducts:products).filter(p=>(brand==='all'||p.brand===brand)&&(!modelFilter||p.model===modelFilter)&&`${p.brand} ${p.name} ${p.color}`.toLowerCase().includes(search.value.toLowerCase()));const preview=brand==='all'&&!expanded&&!search.value.trim();const visible=preview?filtered.slice(0,4):filtered;const more=document.querySelector('#show-more');more.hidden=brand!=='all'||Boolean(search.value.trim())||filtered.length<=4;more.innerHTML=expanded?'Ver menos <span aria-hidden="true">↑</span>':'Ver mais <span aria-hidden="true">→</span>';more.setAttribute('aria-expanded',String(expanded));document.querySelector('#products').innerHTML=visible.map(p=>`<article class="product"><div class="product-image"><img src="${p.image}" alt="${p.name} — ${p.color}" loading="lazy"><span class="tag">SELEÇÃO HYPE.</span><button class="heart ${saved.includes(p.id)?'selected':''}" data-id="${p.id}" aria-label="${saved.includes(p.id)?'Remover':'Adicionar'} ${p.name} ${saved.includes(p.id)?'da':'à'} lista de desejos" aria-pressed="${saved.includes(p.id)}">${saved.includes(p.id)?'♥':'♡'}</button></div><p class="brand">${p.brand}</p><h3>${p.name}</h3><p class="colorway">${p.color}</p><span class="price-from">${p.price===null?'':'A partir de'}</span><strong class="price">${money(p.price)}</strong><a class="product-source" href="${p.source}" target="_blank" rel="noopener">Ver referência na Droper <span aria-hidden="true">↗</span></a></article>`).join('');document.querySelector('.empty').hidden=filtered.length>0;document.querySelector('#result-count').textContent=`${preview&&filtered.length>4?`${visible.length} de ${filtered.length} tênis`: `${filtered.length} ${filtered.length===1?'tênis encontrado':'tênis encontrados'}`}${brand==='all'?'':` · ${brand}${modelFilter?' '+modelFilter:''}`}`;document.querySelector('#count').textContent=saved.length;document.querySelector('#saved').innerHTML=saved.length?products.filter(p=>saved.includes(p.id)).map(p=>`<div class="saved-row"><img src="${p.image}" alt=""><div>${p.name}<p>${p.color}</p><strong>${money(p.price)}</strong></div><button data-id="${p.id}" aria-label="Remover ${p.name}">×</button></div>`).join(''):'<p class="price-note">Sua lista ainda está vazia. Toque no coração de um tênis para salvá-lo.</p>'}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(!b)return;const id=Number(b.dataset.id);const exists=saved.includes(id);saved=exists?saved.filter(x=>x!==id):[...saved,id];try{localStorage.setItem('hype-wishlist',JSON.stringify(saved))}catch{}render();const toast=document.querySelector('#toast');toast.textContent=exists?'Tênis removido da lista':'Tênis adicionado à lista de desejos';toast.classList.add('visible');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>toast.classList.remove('visible'),2200)});
-renderBrands();document.querySelectorAll('[data-brand]').forEach(b=>b.addEventListener('click',()=>{brand=b.dataset.brand;modelFilter=null;search.value='';if(brand==='all'){expanded=false}document.querySelectorAll('[data-brand]').forEach(x=>(x.classList.toggle('active',x===b),x.setAttribute('aria-pressed',String(x===b))));render()}));document.querySelector('#show-more').addEventListener('click',()=>{expanded=!expanded;render();if(!expanded)document.querySelector('#catalogo').scrollIntoView({block:'start'})});search.addEventListener('input',()=>{modelFilter=null;expanded=false;render()});document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();document.querySelector('#catalogo').scrollIntoView()});document.querySelector('#wishlist').onclick=()=>document.querySelector('#favorites').showModal();document.querySelector('#close').onclick=()=>document.querySelector('#favorites').close();document.querySelector('#favorites').addEventListener('click',e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.currentTarget.close()}});document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();search.focus()}});render();
-
-function renderBrands(){
- const order=['Nike','adidas','Air Jordan','Asics','New Balance','Vans','On Running','Off-White','BAPE'];
- document.querySelector('#brand-options').innerHTML='<button class="brand-tile active" data-brand="all" aria-pressed="true"><span class="brand-circle all-brands" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/></svg></span><span>Todos</span></button>'+order.map(name=>{const p=products.find(p=>p.brand===name);return `<button class="brand-tile" data-brand="${name}" aria-pressed="false"><span class="brand-circle"><img src="${p.brandLogo}" alt="" loading="lazy"></span><span>${name}</span></button>`}).join('');
+/* A API é a fonte de dados; nenhum favorito é salvo no localStorage. */
+let products=[], saved=[], user=null, csrf='', brand='all', expanded=false, modelFilter=null;
+let catalogReady=false;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+function notice(msg){const dlg=document.querySelector('dialog[open]');if(dlg){let status=dlg.querySelector('.form-status');if(!status){status=document.createElement('p');status.className='form-status';status.setAttribute('role','status');dlg.prepend(status)}status.textContent=msg;}$('#toast').textContent=msg;$('#toast').classList.add('visible');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),5000)}
+async function api(path,method='GET',body){const r=await fetch('/api/'+path,{method,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();if(!r.ok)throw Error(d.error||'Não foi possível concluir.');return d}
+async function sessionLoad(){const s=await api('sessao');user=s.usuario;csrf=s.csrf;$('#account').textContent=user?user.nome_completo:'Entrar / Cadastrar';$('#exit').hidden=!user;$('#manage').hidden=!user||user.perfil==='CLIENTE';saved=user?await api('lista'):[];updateManage();render()}
+function updateManage(){
+ $('#manage').disabled=!catalogReady;
+ $('#manage').title=catalogReady?'Gerenciar catálogo e estoque':'Aguarde o carregamento do catálogo';
 }
-
-// Intercala as marcas em uma sequência fixa, preservada a cada visita.
-function interleaveBrands(){
- const names=['Nike','New Balance','adidas','Air Jordan','Asics','Vans','On Running','Off-White','BAPE'];
- const groups=names.map(name=>products.filter(product=>product.brand===name));
- const result=[];
- for(let index=0;index<Math.max(...groups.map(group=>group.length));index++){
-  for(const group of groups){if(group[index])result.push(group[index])}
+async function load(){
+ catalogReady=false;updateManage();
+ try{products=await api('produtos');renderBrands();render();catalogReady=true}
+ finally{updateManage()}
+}
+function syncExistingModel(){
+ const form=$('#new-product-form');
+ const selected=products.find(p=>String(p.id_modelo)===$('#existing-model').value);
+ for(const [field,key] of [['nome','name'],['marca','brand']]){
+  const input=form.elements.namedItem(field);
+  input.value=selected?selected[key]:'';
+  input.readOnly=Boolean(selected);
  }
- return result;
 }
-
-// Cada botão do banner seleciona a marca e o modelo no catálogo.
-document.querySelectorAll('[data-explore-brand]').forEach(link=>link.addEventListener('click',()=>{
- brand=link.dataset.exploreBrand;
- modelFilter=link.dataset.exploreModel;
- search.value='';expanded=false;
- document.querySelectorAll('[data-brand]').forEach(button=>{
-  const selected=button.dataset.brand===brand;
-  button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));
- });
- render();
-}));
-
+$('#existing-model').onchange=syncExistingModel;
+function renderBrands(){const names=[...new Set(products.map(p=>p.brand))];const logos={'Nike':'nike','adidas':'adidas','Air Jordan':'air-jordan','Asics':'asics','New Balance':'new-balance','Vans':'vans','On Running':'on-running','Off-White':'off-white','BAPE':'bape'};$('#brand-options').innerHTML='<button class="brand-tile" data-brand="all">Todos</button>'+names.map(n=>`<button class="brand-tile" data-brand="${esc(n)}"><span class="brand-circle">${logos[n]?`<img src="assets/brand-${logos[n]}.webp" alt="">`:esc(n[0])}</span><span>${esc(n)}</span></button>`).join('');}
+function render(){const filtered=products.filter(p=>(brand==='all'||p.brand===brand)&&(!modelFilter||p.model.includes(modelFilter))&&`${p.brand} ${p.name} ${p.color}`.toLowerCase().includes($('#search').value.toLowerCase()));const visible=expanded?filtered:filtered.slice(0,4);$('#products').innerHTML=visible.map(p=>`<article class="product"><div class="product-image"><img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy"><span class="tag">SELEÇÃO HYPE.</span><button class="heart ${saved.some(v=>v.id_coloracao===p.id)?'selected':''}" data-detail="${p.id}" aria-label="Escolher tamanho e salvar">♡</button></div><p class="brand">${esc(p.brand)}</p><h3>${esc(p.name)}</h3><p class="colorway">${esc(p.color)}</p><strong class="price">${p.price===0?'Consulte a loja':money(p.price)}</strong><button class="product-source" data-detail="${p.id}">Ver tamanhos e detalhes →</button></article>`).join('');$('#result-count').textContent=`${filtered.length} tênis encontrados`;$('.empty').hidden=filtered.length>0;$('#show-more').hidden=filtered.length<=4;$('#show-more').textContent=expanded?'Ver menos ↑':'Ver mais →';$('#show-more').setAttribute('aria-expanded',String(expanded));$('#count').textContent=saved.length;$('#saved').innerHTML=saved.length?saved.map(v=>`<div class="saved-row"><div>${esc(v.nome)}<p>${esc(v.cor)} · Tamanho ${esc(v.tamanho)}</p><strong>${v.preco?money(v.preco):'Consulte a loja'}</strong><p>Estoque: ${v.quantidade_estoque}</p></div><button data-remove="${v.id_variante}" aria-label="Remover item">×</button></div>`).join(''):(user?'Sua lista está vazia.':'Entre na conta para acessar sua lista.');document.querySelectorAll('[data-brand]').forEach(b=>{b.classList.toggle('active',b.dataset.brand===brand);b.setAttribute('aria-pressed',String(b.dataset.brand===brand))})}
+function detail(id){const p=products.find(p=>p.id===id);if(!p)return;$('#detail-content').innerHTML=`<h2>${esc(p.name)}</h2><img class="detail-image" src="${esc(p.image)}" alt="${esc(p.name)}"><p>${esc(p.color)} · ${p.price?money(p.price):'Consulte a loja'}</p><label>Coloração <select id="color-select">${products.filter(x=>x.id_modelo===p.id_modelo).map(x=>`<option value="${x.id}" ${x.id===p.id?'selected':''}>${esc(x.color)}</option>`).join('')}</select></label><label>Tamanho <select id="variant">${p.variantes.map(v=>`<option value="${v.id_variante}">${esc(v.tamanho)} — ${v.quantidade_estoque} em estoque</option>`).join('')}</select></label><button id="save-variant" class="button">Salvar na lista de desejos</button><p>A lista não reserva nem reduz o estoque.</p>`;$('#color-select').onchange=e=>detail(Number(e.target.value));$('#save-variant').onclick=()=>run(async()=>{if(!user){$('#detail').close();$('#auth').showModal();return}await api('lista/'+$('#variant').value,'POST');saved=await api('lista');render();notice('Item salvo na sua conta.');});if(!$('#detail').open)$('#detail').showModal()}
+async function run(fn){try{await fn()}catch(e){notice(e.message)}}
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.detail)detail(Number(b.dataset.detail));if(b.dataset.remove)run(async()=>{await api('lista/'+b.dataset.remove,'DELETE');saved=await api('lista');render()});if(b.dataset.brand){brand=b.dataset.brand;modelFilter=null;expanded=false;render()}if(b.dataset.close)$('#'+b.dataset.close).close()});
+$('#search').oninput=()=>{modelFilter=null;expanded=true;render()};$('form[role="search"]').onsubmit=e=>{e.preventDefault();$('#catalogo').scrollIntoView()};$('#show-more').onclick=()=>{expanded=!expanded;render()};$('#wishlist').onclick=()=>$('#favorites').showModal();$('#close').onclick=()=>$('#favorites').close();$('#account').onclick=()=>{if(user)notice('Perfil: '+user.perfil);else $('#auth').showModal()};$('#exit').onclick=()=>run(async()=>{await api('logout','POST');await sessionLoad();notice('Você saiu da conta.')});
+for(const kind of ['login','cadastro'])$('#'+kind+'-form').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;run(async()=>{await api(kind,'POST',Object.fromEntries(new FormData(form)));await sessionLoad();form.reset();$('#auth').close();notice('Conta conectada.');})};
+$('#manage').onclick=()=>{if(!user||user.perfil==='CLIENTE')return;if(!catalogReady){notice('Aguarde o carregamento do catálogo.');return}const f=$('#new-product-form');f.hidden=user.perfil!=='GERENTE';$('#stock-color').innerHTML=products.map(p=>`<option value="${p.id}">${esc(p.name)} · ${esc(p.color)}</option>`).join('');$('#existing-model').innerHTML='<option value="">Criar novo modelo</option>'+[...new Map(products.map(p=>[p.id_modelo,p])).values()].map(p=>`<option value="${p.id_modelo}">${esc(p.name)}</option>`).join('');syncExistingModel();$('#admin').showModal()};
+$('#stock-form').onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));if(!catalogReady||!d.id_coloracao){notice('Aguarde o catálogo e selecione uma coloração cadastrada.');return}run(async()=>{await api('estoque/'+d.id_coloracao,'PUT',d);await load();notice('Tamanho e estoque atualizados.')})};$('#new-product-form').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;run(async()=>{await api('produtos','POST',Object.fromEntries(new FormData(form)));await load();form.reset();syncExistingModel();notice('Coloração cadastrada com foto e tamanho.');})};
+document.querySelectorAll('[data-explore-brand]').forEach(link=>link.onclick=()=>{brand=link.dataset.exploreBrand;modelFilter=link.dataset.exploreModel;expanded=true;$('#search').value='';render()});
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){e.preventDefault();$('#search').focus()}});
+run(async()=>{await sessionLoad();await load()});
 const carousel=document.querySelector('.carousel');
 const slides=[...document.querySelectorAll('[data-slide]')];
 const previousSlide=document.querySelector('.carousel-prev');
